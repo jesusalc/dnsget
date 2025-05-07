@@ -70,14 +70,7 @@ PTR: dev.test.
 
 Questions:
 SRV: dev.test.
-# Output
-Questions:
-A: seriouseats.com.
-Answers:
-151.101.2.137 (TTL 142)
-151.101.194.137 (TTL 142)
-151.101.130.137 (TTL 142)
-151.101.66.137 (TTL 142)
+
 
 ```
 ## Example 2 google.com
