@@ -1,8 +1,8 @@
 [package]
-name = "dingo"
+name = "dnsget"
 version = "0.1.0"
 edition = "2021"
-authors = ["Adam Chalmers"]
+authors = ["Adam Chalmers", "Jesus Alcaraz"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

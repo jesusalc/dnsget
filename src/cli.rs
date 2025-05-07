@@ -8,17 +8,19 @@ use ascii::AsciiString;
 use crate::dns_types::RecordType;
 
 const HELP: &str = "\
-dingo -- domain information gatherer, obviously
+dnsget -- domain information gatherer, obviously
 USAGE:
-  dingo [OPTIONS] --record-type TYPE NAME
+  dnsget [OPTIONS] --record-type TYPE NAME
 FLAGS:
   -h, --help                Prints help information
+  -v, --verbose             Enable verbose output
 OPTIONS:
-  -t, --record-type TYPE    Choose the DNS record type (currently only supports A, CNAME, SOA and AAAA)
+  -t, --record-type TYPE    Choose the DNS record type (A, AAAA, CNAME, SOA, NS, MX, TXT, PTR, SRV, or ALL)
   -r, --resolver IP         Which DNS resolver to query (default is 1.1.1.1:53)
 ARGS:
   NAME A domain name to look up. Remember, these must be ASCII.
 ";
+
 
 /// Values derived from the CLI arguments.
 #[derive(Debug)]
@@ -26,13 +28,13 @@ pub struct AppArgs {
     pub record_type: RecordType,
     pub name: String,
     pub resolver: SocketAddr,
+    pub verbose: bool,
 }
 
 impl AppArgs {
     pub fn parse() -> Result<Self, pico_args::Error> {
         let mut pargs = pico_args::Arguments::from_env();
 
-        // Help has a higher priority and should be handled separately.
         if pargs.contains(["-h", "--help"]) {
             print!("{}", HELP);
             std::process::exit(0);
@@ -50,7 +52,6 @@ impl AppArgs {
             }
         };
 
-        // I asked some coworkers and they suggested this DNS resolver
         let default_resolver = SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::new(1, 1, 1, 1), 53));
         let resolver = pargs
             .opt_value_from_str("--resolver")?
@@ -67,10 +68,13 @@ impl AppArgs {
             name.push('.');
         }
 
+        let verbose = pargs.contains(["-v", "--verbose"]);
+
         let args = AppArgs {
             record_type,
             name,
             resolver,
+            verbose,
         };
 
         let remaining = pargs.finish();

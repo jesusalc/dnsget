@@ -1,1 +1,1 @@
-cargo build -q --release && cp target/release/dingo /usr/local/bin/dingo
+cargo build -q --release && cp target/release/dnsget /usr/local/bin/dnsget

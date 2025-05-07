@@ -49,48 +49,59 @@ pub fn send_req(msg: Message, resolver: SocketAddr, verbose: bool) -> AResult<(V
 pub fn print_resp(resp: Vec<u8>, len: usize, sent_query_id: u16, verbose: bool) -> AResult<()> {
     if verbose {
         println!("Response size: {len} bytes");
-        println!("{resp:?}");
+        println!("Raw response bytes: {resp:?}");
     }
 
-    // Parse and validate the response.
     let input = resp[..len].to_vec();
-    let response_msg = match Message::deserialize(input) {
-        Ok(msg) => msg,
-        Err(e) => anyhow::bail!("Error parsing response: {e}"),
-    };
-    let received_query_id = response_msg.header.id;
-    if sent_query_id != received_query_id {
-        eprintln!("Mismatch between query IDs. Client sent {sent_query_id} and received {received_query_id}")
+    let response_msg = Message::deserialize(input).map_err(|e| anyhow!("Parsing error: {e}"))?;
+
+    if response_msg.header.id != sent_query_id {
+        eprintln!(
+            "Warning: Mismatched query IDs. Sent {sent_query_id}, received {}",
+            response_msg.header.id
+        );
     }
+
     match response_msg.header.resp_code {
         ResponseCode::NoError => {}
-        err => anyhow::bail!("Error from resolver: {err}"),
+        err => return Err(anyhow!("Error from resolver: {err}")),
     };
 
-    // Reprint the question, why not?
-    println!("Questions:");
-    for question in response_msg.question.iter() {
-        println!("{question}");
+    println!("\nQuestions:");
+    for q in &response_msg.question {
+        println!("{q}");
     }
 
-    // Print records sent by the resolver.
+    if response_msg.answer.is_empty()
+        && response_msg.authority.is_empty()
+        && response_msg.additional.is_empty()
+    {
+        println!("No DNS records returned.");
+        return Ok(());
+    }
+
     if !response_msg.answer.is_empty() {
-        println!("Answers:");
-        for record in response_msg.answer {
-            println!("{}", record.as_dns_response());
+        println!("Answer Records:");
+        for r in &response_msg.answer {
+            println!("{}", r.as_dns_response());
         }
     }
-    if !response_msg.authority.is_empty() {
-        println!("Authority records:");
-        for record in response_msg.authority {
-            println!("{}", record.as_dns_response());
+
+    if verbose {
+        if !response_msg.authority.is_empty() {
+            println!("Authority Records:");
+            for r in &response_msg.authority {
+                println!("{}", r.as_dns_response());
+            }
+        }
+
+        if !response_msg.additional.is_empty() {
+            println!("Additional Records:");
+            for r in &response_msg.additional {
+                println!("{}", r.as_dns_response());
+            }
         }
     }
-    if !response_msg.additional.is_empty() {
-        println!("Additional records:");
-        for record in response_msg.additional {
-            println!("{}", record.as_dns_response());
-        }
-    }
+
     Ok(())
 }

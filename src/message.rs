@@ -130,22 +130,44 @@ impl MsgParser {
     ) -> impl FnMut(&'i [u8]) -> IResult<&'i [u8], RecordData> + '_ {
         move |i| {
             let recursion_depth = 0;
-            let record = match record_type {
+            match record_type {
                 RecordType::A => map(tuple((be_u8, be_u8, be_u8, be_u8)), |(a, b, c, d)| {
                     RecordData::A(Ipv4Addr::new(a, b, c, d))
-                })(i)?,
+                })(i),
                 RecordType::Aaaa => map(
                     tuple((
-                        be_u16, be_u16, be_u16, be_u16, be_u16, be_u16, be_u16, be_u16,
+                        be_u16, be_u16, be_u16, be_u16,
+                        be_u16, be_u16, be_u16, be_u16,
                     )),
                     |(a, b, c, d, e, f, g, h)| {
                         RecordData::Aaaa(Ipv6Addr::new(a, b, c, d, e, f, g, h))
                     },
-                )(i)?,
-                RecordType::Cname => {
-                    map(|i| self.parse_name(i, recursion_depth), RecordData::Cname)(i)?
+                )(i),
+                RecordType::Cname => map(|i| self.parse_name(i, recursion_depth), RecordData::Cname)(i),
+                RecordType::Ns => map(|i| self.parse_name(i, recursion_depth), RecordData::Ns)(i),
+                RecordType::Ptr => map(|i| self.parse_name(i, recursion_depth), RecordData::Ptr)(i),
+                RecordType::Mx => {
+                    let (i, preference) = be_u16(i)?;
+                    let (i, exchange) = self.parse_name(i, recursion_depth)?;
+                    Ok((i, RecordData::Mx { preference, exchange }))
                 }
-                RecordType::Ns => map(|i| self.parse_name(i, recursion_depth), RecordData::Ns)(i)?,
+                RecordType::Srv => {
+                    let (i, priority) = be_u16(i)?;
+                    let (i, weight) = be_u16(i)?;
+                    let (i, port) = be_u16(i)?;
+                    let (i, target) = self.parse_name(i, recursion_depth)?;
+                    Ok((i, RecordData::Srv {
+                        priority,
+                        weight,
+                        port,
+                        target,
+                    }))
+                }
+                RecordType::Txt => {
+                    let (i, len) = be_u8(i)?;
+                    let (i, txt) = nom::bytes::complete::take(len)(i)?;
+                    Ok((i, RecordData::Txt(String::from_utf8_lossy(txt).into())))
+                }
                 RecordType::Soa => {
                     let (i, mname) = self.parse_name(i, recursion_depth)?;
                     let (i, rname) = self.parse_name(i, recursion_depth)?;
@@ -153,20 +175,25 @@ impl MsgParser {
                     let (i, refresh) = be_u32(i)?;
                     let (i, retry) = be_u32(i)?;
                     let (i, expire) = be_u32(i)?;
-                    let rd = SoaData {
+                    Ok((i, RecordData::Soa(SoaData {
                         mname,
                         rname,
                         serial,
                         refresh,
                         retry,
                         expire,
-                    };
-                    (i, RecordData::Soa(rd))
+                    })))
                 }
-            };
-            Ok(record)
+                RecordType::All => {
+                    // Fallback: parse raw bytes or return empty
+                    let (i, len) = be_u16(i)?;
+                    let (i, data) = nom::bytes::complete::take(len)(i)?;
+                    Ok((i, RecordData::Raw(data.to_vec())))
+                }
+            }
         }
     }
+
 
     /// Parse a domain name.
     fn parse_name<'i>(

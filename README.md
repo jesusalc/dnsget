@@ -1,15 +1,15 @@
-# Dingo
+# Dnsget
 
 Domain INformation Gatherer, Obviously.
 
 ## Installation
 
 1. Install cargo, see [instructions on the Rust website](https://doc.rust-lang.org/cargo/getting-started/installation.html)
-2. Run ./install.sh (it just does cargo build and copies the program to `/usr/local/bin/dingo`)
+2. Run ./install.sh (it just does cargo build and copies the program to `/usr/local/bin/dnsget`)
 
 ## Examples
 ```sh
-$ dingo --record-type A seriouseats.com
+$ dnsget --record-type A seriouseats.com
 
 # Output
 Questions:
@@ -23,7 +23,7 @@ Answers:
 
 ## Usage
 ```
-dingo [OPTIONS] --record-type TYPE NAME
+dnsget [OPTIONS] --record-type TYPE NAME
 
 FLAGS:
   -h, --help                Prints help information

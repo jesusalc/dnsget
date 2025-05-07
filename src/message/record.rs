@@ -11,37 +11,59 @@ pub struct Record {
     pub data: RecordData,
 }
 
+
 impl Record {
     pub fn as_dns_response(&self) -> String {
         let rdata = match &self.data {
             RecordData::A(ipv4) => ipv4.to_string(),
             RecordData::Aaaa(ipv6) => ipv6.to_string(),
             RecordData::Cname(name) => name.to_string(),
-            RecordData::Soa(soa) => format!("{soa:?}"),
             RecordData::Ns(name) => name.to_string(),
+            RecordData::Ptr(name) => name.to_string(),
+            RecordData::Mx { preference, exchange } => format!("{} {}", preference, exchange),
+            RecordData::Srv { priority, weight, port, target } => {
+                format!("{} {} {} {}", priority, weight, port, target)
+            }
+            RecordData::Txt(txt) => txt.clone(),
+            // RecordData::Soa(soa) => format!("{:?}", soa),
+            RecordData::Soa(soa) => format!(
+                "{} {} (serial {}, refresh {}, retry {}, expire {})",
+                soa.mname, soa.rname, soa.serial, soa.refresh, soa.retry, soa.expire
+            ),
+
+            RecordData::Raw(data) => format!("RAW({} bytes)", data.len()),
         };
         format!("{}: {rdata} (TTL {})", self.data.as_type(), self.ttl)
     }
 }
-
 #[derive(Debug)]
 #[cfg_attr(test, derive(Eq, PartialEq))]
 pub enum RecordData {
     A(Ipv4Addr),
     Aaaa(Ipv6Addr),
     Cname(String),
-    Soa(SoaData),
     Ns(String),
+    Ptr(String),
+    Mx { preference: u16, exchange: String },
+    Srv { priority: u16, weight: u16, port: u16, target: String },
+    Txt(String),
+    Soa(SoaData),
+    Raw(Vec<u8>), // For unsupported/ALL queries
 }
 
 impl RecordData {
-    fn as_type(&self) -> RecordType {
+    pub fn as_type(&self) -> RecordType {
         match self {
             Self::A(_) => RecordType::A,
             Self::Aaaa(_) => RecordType::Aaaa,
             Self::Cname(_) => RecordType::Cname,
-            Self::Soa(_) => RecordType::Soa,
             Self::Ns(_) => RecordType::Ns,
+            Self::Ptr(_) => RecordType::Ptr,
+            Self::Mx { .. } => RecordType::Mx,
+            Self::Srv { .. } => RecordType::Srv,
+            Self::Txt(_) => RecordType::Txt,
+            Self::Soa(_) => RecordType::Soa,
+            Self::Raw(_) => RecordType::All,
         }
     }
 }
